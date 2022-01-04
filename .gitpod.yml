@@ -1,0 +1,3 @@
+tasks:
+  - init: ./inicio.sh
+    command: apachectl -k start
