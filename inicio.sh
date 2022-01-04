@@ -9,5 +9,5 @@ git update-index --assume-unchanged docs/config.js
 # Generamos el archivo de configuración para gitpod
 cat <<EOF > public/config.js
 const clientId = "$TWITCH_CLIENTID";
-const redirect = "${GITPOD_WORKSPACE_URL/:\/\//:\/\/8001-}/callback.html";
+const redirect = "${GITPOD_WORKSPACE_URL/:\/\//:\/\/8001-}/";
 EOF
