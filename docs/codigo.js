@@ -1,12 +1,13 @@
 console.log(redirect);
 
 document.addEventListener("DOMContentLoaded", (evento) => {
-    console.log(sessionStorage.estado);
+    console.log("Estado almacenado:", sessionStorage.estado);
     if (sessionStorage.estado && document.location.hash.match(/access_token=(\w+)/)) {
-        const state = document.location.hash.match(/\#(?:state)\=([a-z]*?)(\&|$)/)[1];
-        console.log(state, sessionStorage.estado);
+        const state = document.location.hash.match(/[#&]state=([\w]*)(?:&|$)/)[1];
+        console.log("Estado obtenido:", state);
         if (state === sessionStorage.estado) {
-            sessionStorage.token = document.location.hash.match(/\#(?:access_token)\=([\S\s]*?)\&/)[1];
+            sessionStorage.token = document.location.hash.match(/[#&]access_token=([\w]*)(?:&|$)/)[1];
+            console.log("Token:", sessionStorage.token);
         }
         history.replaceState(null, null, ' ');
     } else {
