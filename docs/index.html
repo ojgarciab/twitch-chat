@@ -30,6 +30,18 @@
         #chat > pre.servidor {
             color: orangered;
         }
+        #envios {
+            width: calc(100% - 4em);
+            margin: 0.5em auto;
+        }
+        #texto {
+            width: calc(100% - 9em);
+            float: left;
+        }
+        #envio {
+            width: 8em;
+            float: right;
+        }
     </style>
 </head>
 <body>
@@ -40,6 +52,13 @@
     <div id="contenidoChat" class="oculto">
         <h2 class="centrado">Chat:</h2>
         <div id="chat"></div>
+        <div id="envios">
+            <form id="formulario">
+                <input id="texto" autocomplete="off" />
+                <button id="envio">Enviar</button>
+            </form>
+        </div>
+        
     </div>
     <script src="config.js"></script>
     <script src="codigo.js"></script>

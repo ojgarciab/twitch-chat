@@ -4,24 +4,15 @@
 function comenzarChat() {
     /* Tiempo de espera entre reintentos exponencial */
     let retraso = 0;
-    /* Manipulador del temporizador de envío de PINGs */
-    let temporizador = false;
 
     /* Creamos el websocket al servicio IRC de Twitch https://dev.twitch.tv/docs/irc/guide */
     const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
 
     /**
-     * Realiza el envío de un PING al servidor.
-     */
-    function enviarPing() {
-
-    }
-
-    /**
      * Realiza una petición al API de Twitch para comprobar si el token proporcionado es válido. Cambia el estado de la página acorde con el resultado.
      * @param {string} mensaje - Mensaje a ser enviado.
      */
-    function enviarMensaje(mensaje) {
+    function chatEnviar(mensaje) {
         let pre = document.createElement("pre");
         pre.className = "cliente";
         pre.textContent = mensaje;
@@ -31,10 +22,22 @@ function comenzarChat() {
     }
 
     /**
+     * Gestionamos el evento del envío del formulario.
+     */
+    function formularioEnvio(evento) {
+        /* Evitamos el envío del formulario */
+        evento.preventDefault();
+        /* Enviamos el mensaje */
+        chatEnviar("PRIVMSG #" + sessionStorage.login + " :" + texto.value);
+        /* Limpiamos el formulario */
+        texto.value = "";
+    }
+
+    /**
      * Nos autenticamos en el servidor.
      */
     function chatAutenticacion() {
-        /* Enviamos las credenciales del usuario */
+        /* Enviamos las credenciales del usuario de manera silenciosa (sin usar chatEnviar) */
         ws.send("PASS oauth:" + sessionStorage.token);
         ws.send("NICK " + sessionStorage.login);
     }
@@ -44,10 +47,10 @@ function comenzarChat() {
         console.log("comenzarChat: conexión establecida");
         /* Restablecemos el retraso de los reintentos de conexión */
         retraso = 0;
-        /* Enviamos un PING cada 2 minutos, es necesario enviar uno al menos una vez cada 5 minutos */
-        temporizador = setInterval(enviarPing, 12000);
         /* Autenticamos la sesión del usuario */
         chatAutenticacion();
+        /* Agregamos el manipulador del evento del envío del formulario */
+        formulario.addEventListener("submit", formularioEnvio, false);
     };
 
     ws.onerror = function(error) {
@@ -62,12 +65,12 @@ function comenzarChat() {
         pre.textContent = evento.data;
         chat.append(pre);
         chat.scrollTo({ top: chat.scrollHeight - chat.clientHeight, left: 0, behavior: 'smooth' });
-        /* Procesamos los mensajes uno a uno */
-        evento.data.split("\r\n").forEach(mensaje => {
+        /* Procesamos los mensajes uno a uno (filtrando los vacíos) */
+        evento.data.split("\r\n").filter(a => a).forEach(mensaje => {
             console.log("Websocket (onmessage, analizando):", mensaje);
             /* Disponemos de 5 minutos para responder a un PING */
             if (mensaje == "PING :tmi.twitch.tv") {
-                enviarMensaje("PONG :tmi.twitch.tv");
+                chatEnviar("PONG :tmi.twitch.tv");
                 return;
             }
             /* Obtenemos las partes del mensaje */
@@ -76,19 +79,19 @@ function comenzarChat() {
             switch (codigo) {
                 case "001": // RPL_WELCOME
                     /* Solicitamos el acceso a nuestro propio canal */
-                    enviarMensaje("JOIN #" + sessionStorage.login);
+                    chatEnviar("JOIN #" + sessionStorage.login);
                     return;
             }
         })
     };
 
     ws.onclose = function() {
-        /* Cancelamos los PING periódicos */
-        clearInterval(temporizador);
         /* Volvemos a conectarnos pasado un tiempo de espera prudencial y exponencial */
         const tiempo = Math.pow(2, retraso++);
         console.log(`Reconectando en ${tiempo} segundos`);
         setTimeout(comenzarChat, tiempo * 1000);
+        /* Eliminamos el manipulador anterior */
+        formulario.removeEventListener("submit", formularioEnvio, false);
     };
 }
 
