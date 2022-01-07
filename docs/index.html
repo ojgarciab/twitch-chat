@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Chat de Twitch (PubSub)</title>
+    <title>Chat de Twitch (IRC)</title>
     <style>
         body {
             padding-top: 2rem;
@@ -14,10 +14,26 @@
         .oculto {
             display: none;
         }
+        #chat {
+            width: calc(100% - 4em);
+            height: 7em;
+            border: 1px solid black;
+            margin: auto;
+            overflow: auto;
+        }
+        #chat > pre {
+            margin: 0px;
+        }
+        #chat > pre.cliente {
+            color: darkgreen;
+        }
+        #chat > pre.servidor {
+            color: orangered;
+        }
     </style>
 </head>
 <body>
-    <h1 class="centrado">Chat de Twitch (PubSub)</h1>
+    <h1 class="centrado">Chat de Twitch (IRC)</h1>
     <div id="iniciarSesion" class="oculto">
         <a id="enlaceInicio" href="">Iniciar sesión</a>
     </div>
