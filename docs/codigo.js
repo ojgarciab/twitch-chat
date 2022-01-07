@@ -4,6 +4,8 @@
 function comenzarChat() {
     /* Tiempo de espera entre reintentos exponencial */
     let retraso = 0;
+    /* El uso de TAGs ha sido habilitado */
+    let tags = false;
 
     /* Creamos el websocket al servicio IRC de Twitch https://dev.twitch.tv/docs/irc/guide */
     const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
@@ -42,6 +44,29 @@ function comenzarChat() {
         ws.send("NICK " + sessionStorage.login);
     }
 
+    function procesarInstruccion(instruccion, parametros, etiquetas = {}) {
+        /* Obtenemos las partes del mensaje */
+        [ , codigo, destino, mensaje ] = parametros.match(/^([\S]*) ([\S]*) ([\S]*) (.*)$/);
+        /* Índice de códigos: https://www.rfc-editor.org/rfc/rfc2812#section-5 */
+        switch (codigo) {
+            case "001": // RPL_WELCOME
+                /* Solicitamos que los mensajes del chat lleguen con las etiquetas de Twitch */
+                /* Ver https://dev.twitch.tv/docs/irc/tags para más información */
+                chatEnviar("CAP REQ :twitch.tv/tags");
+                /* Solicitamos el acceso a nuestro propio canal */
+                chatEnviar("JOIN #" + sessionStorage.login);
+                return;
+            case "CAP": // Extensión de Twitch
+                /* Nos han respondido aceptando una solicitud */
+                console.log("CAP aceptado:", mensaje);
+                tags = true;
+                break;
+            case "353 ": // RPL_NAMREPLY
+                /* Procesar listado de usuarios */
+                break;
+        }
+    }
+
     /* Activamos el envío de PINGs periódicos y lanzamos el primero */
     ws.onopen = function(event) {
         console.log("comenzarChat: conexión establecida");
@@ -68,21 +93,28 @@ function comenzarChat() {
         /* Procesamos los mensajes uno a uno (filtrando los vacíos) */
         evento.data.split("\r\n").filter(a => a).forEach(mensaje => {
             console.log("Websocket (onmessage, analizando):", mensaje);
-            /* Disponemos de 5 minutos para responder a un PING */
-            if (mensaje == "PING :tmi.twitch.tv") {
-                chatEnviar("PONG :tmi.twitch.tv");
-                return;
+            /* Obtenemos la primera parte del mensaje */
+            [ , instruccion, parametros ] = mensaje.match(/^([\S]*) (.*)$/);
+            /* Obtenemos el primer carácter para detectar qué tipo de mensaje es */
+            switch (instruccion.charAt(0)) {
+                case ':':
+                    /* Procesamos la instrucción sin etiquetas */
+                    procesarInstruccion(instruccion.substring(1), parametros);
+                    break;
+                case '@':
+                    /* Procesamos la instrucción con etiquetas */
+                    let etiquetas = procesarEtiquetas(instruccion.substring(1));
+                    procesarInstruccion(instruccion.substring(1), parametros, etiquetas);
+                    break;
+                default:
+                    switch (instruccion) {
+                        case "PING":
+                            /* Disponemos de 5 minutos para responder a un PING */
+                            chatEnviar("PONG :tmi.twitch.tv");
+                            break;
+                    }
             }
-            /* Obtenemos las partes del mensaje */
-            [ servidor, codigo, destino, mensaje ] = mensaje.split(" ", 4);
-            /* Índice de códigos: https://www.rfc-editor.org/rfc/rfc2812#section-5 */
-            switch (codigo) {
-                case "001": // RPL_WELCOME
-                    /* Solicitamos el acceso a nuestro propio canal */
-                    chatEnviar("JOIN #" + sessionStorage.login);
-                    return;
-            }
-        })
+        });
     };
 
     ws.onclose = function() {
