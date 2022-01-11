@@ -1,6 +1,0 @@
-*.sh linguist-detectable=false
-^[Dd]ocs?/ linguist-detectable=true
-^docs/ linguist-detectable=true
-docs/*.js linguist-language=JavaScript
-docs/*.html linguist-language=HTML
-docs/*.css linguist-language=CSS
