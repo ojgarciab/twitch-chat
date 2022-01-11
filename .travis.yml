@@ -6,4 +6,4 @@ deploy:
   keep_history: true
   local_dir: public
   on:
-    branch: main
+    branch: master
