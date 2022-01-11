@@ -1,4 +1,4 @@
-# Chat de Twitch a través de IRC en javascript puro [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/ojgarciab/twitch-chat)
+# Chat de Twitch a través de IRC en javascript puro [![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/ojgarciab/twitch-chat)[![Build Status](https://app.travis-ci.com/ojgarciab/twitch-chat.svg?branch=master)](https://app.travis-ci.com/ojgarciab/twitch-chat)
 
 Página de chat para Twitch desarrollado en Javascript puro, sin dependencias externas.
 
