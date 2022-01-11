@@ -1,12 +1,12 @@
 ports:
-- port: 8001
-  onOpen: open-browser
+  - port: 8001
+    onOpen: open-browser
 tasks:
-- name: Apache
-  init: >
-    git update-index --assume-unchanged public/config.js ;
-    sed -i '/^const redirect/d' public/config.js ;
-    echo "const redirect = \"${GITPOD_WORKSPACE_URL/:\/\//:\/\/8001-}/\";" >> public/config.js
-  command: >
-    apachectl -k start &&
-    multitail /var/log/apache2/access.log -I /var/log/apache2/error.log
+  - name: Apache
+    init: >
+      git update-index --assume-unchanged public/config.js ;
+      sed -i '/^const redirect/d' public/config.js ;
+      echo "const redirect = \"${GITPOD_WORKSPACE_URL/:\/\//:\/\/8001-}/\";" >> public/config.js
+    command: >
+      apachectl -k start &&
+      multitail /var/log/apache2/access.log -I /var/log/apache2/error.log
