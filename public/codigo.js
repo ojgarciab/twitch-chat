@@ -9,6 +9,7 @@ class TwitterChatWs extends EventTarget {
      * @param {string} token - Twitch API access_token
      */
     constructor(token) {
+        /* Es necesario llamar a super() cuando heredamos de otra clase */
         super();
         this.#token = token;
     }
@@ -23,8 +24,12 @@ class TwitterChatWs extends EventTarget {
      * Establishes the connection to the IRC server
      */
     connect() {
-        /* Si la conexión estaba previamente establecida salimos */
-        if (this.#ws !== null) {
+        /* Si la conexión estaba previamente establecida (o en proceso) salimos */
+        if (
+            this.#ws !== null
+            || this.#ws.readyState === 0
+            || this.#ws.readyState === 1
+        ) {
             return;
         }
         /* Establecemos una nueva conexión con el servidor */
