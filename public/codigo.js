@@ -1,3 +1,73 @@
+
+class TwitterChatWs extends EventTarget {
+    #token;
+    #ws = null;
+    readyState = 3; // CLOSED
+
+    /**
+     * Saves Twitch API key
+     * @param {string} token - Twitch API access_token
+     */
+    constructor(token) {
+        super();
+        this.#token = token;
+    }
+
+    #onConnect(event) {
+        this.readyState = 1; // OPEN
+        console.log("#onConnect:", event);
+        super.dispatchEvent(new Event("connect"));
+    }
+
+    /**
+     * Establishes the connection to the IRC server
+     */
+    connect() {
+        /* Si la conexión estaba previamente establecida salimos */
+        if (this.#ws !== null) {
+            return;
+        }
+        /* Establecemos una nueva conexión con el servidor */
+        this.#ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
+        this.readyState = 0; // CONNECTING
+        /* Configuramos los manipuladores de eventos */
+        ws.onopen = this.#onConnect;
+        ws.onerror = this.#onError;
+        ws.onmessage = this.#onMessage;
+        ws.onclose = this.#onClose;
+    }
+
+    /**
+     * Disconnects from IRC server
+     */
+     disconnect() {
+        /* Desconectamos el websocket */
+        this.#ws.disconnect();
+        this.readyState = 0; // CLOSED
+        this.#ws = null;
+    }
+
+
+    run() {
+        this.messageListener({raw: "Pruebas " + this.#token});
+        super.dispatchEvent(new CustomEvent("mio", {detail: { raw: "Pruebas :D " + this.#token}}));
+    }
+    static distancia ( a , b) {
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+  
+      return Math.sqrt ( dx * dx + dy * dy );
+    }
+}
+
+t = new Date("")
+
+p = new TwitterChatWs("4343");
+p.onMessage((evento) => {console.log(evento.raw);});
+p.addEventListener("mio", (e) => console.log("Evento: ", e));
+p.run();
+console.log(p);
+
 /**
  * Configura la conexión mediante Websockets y gestiona los mensajes.
  */
