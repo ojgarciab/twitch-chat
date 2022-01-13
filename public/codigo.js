@@ -1,45 +1,79 @@
 
 class TwitterChatWs extends EventTarget {
     #token;
+    #login;
     #ws = null;
     readyState = 3; // CLOSED
 
     /**
      * Saves Twitch API key
      * @param {string} token - Twitch API access_token
+     * @param {string} login - Twitch user name
      */
-    constructor(token) {
+    constructor(token, login) {
         /* Es necesario llamar a super() cuando heredamos de otra clase */
         super();
         this.#token = token;
+        this.#login = login;
     }
 
-    #onConnect(event) {
+    /**
+     * Saves Twitch API key
+     * @param {Event} event - Event triggered when websocket is connected
+     */
+    #onOpen = (event) => {
+        console.log("#onOpen:", event);
         this.readyState = 1; // OPEN
-        console.log("#onConnect:", event);
-        super.dispatchEvent(new Event("connect"));
+        super.dispatchEvent(new Event("open"));
+        /* Enviamos las credenciales del usuario de manera transparente */
+        this.#ws.send("PASS oauth:" + this.#token);
+        this.#ws.send("NICK " + this.#login);
     }
 
+    /**
+     * Saves Twitch API key
+     * @param {Event} event - Event triggered when websocket is connected
+     */
+    #onError = (event) => {
+        console.log("#onError:", event);
+        super.dispatchEvent(event);
+    }
+
+    #onMessage = (event) => {
+        console.log("#onMessage:", event);
+        super.dispatchEvent(new MessageEvent("message", { data: event.data }));
+        /* Procesamos cada línea de texto como un evento independiente */
+        event.data.split("\r\n").filter(a => a).forEach(data => {
+            super.dispatchEvent(new MessageEvent('messageline', { data }));
+        });
+    }
+
+    #onClose = (event) => {
+        console.log("#onClose:", event);
+        super.dispatchEvent(new Event("close"));
+    }
+
+    send(message) {
+        this.#ws.send(message);
+    }
+    
     /**
      * Establishes the connection to the IRC server
      */
     connect() {
-        /* Si la conexión estaba previamente establecida (o en proceso) salimos */
-        if (
-            this.#ws !== null
-            || this.#ws.readyState === 0
-            || this.#ws.readyState === 1
-        ) {
+        /* Si la conexión estaba previamente establecida salimos */
+        if (this.#ws !== null) {
             return;
         }
+        console.log("connect");
         /* Establecemos una nueva conexión con el servidor */
         this.#ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
         this.readyState = 0; // CONNECTING
         /* Configuramos los manipuladores de eventos */
-        ws.onopen = this.#onConnect;
-        ws.onerror = this.#onError;
-        ws.onmessage = this.#onMessage;
-        ws.onclose = this.#onClose;
+        this.#ws.addEventListener("open", this.#onOpen);
+        this.#ws.addEventListener("error", this.#onError);
+        this.#ws.addEventListener("message", this.#onMessage);
+        this.#ws.addEventListener("close", this.#onClose);
     }
 
     /**
@@ -51,28 +85,57 @@ class TwitterChatWs extends EventTarget {
         this.readyState = 0; // CLOSED
         this.#ws = null;
     }
+}
 
+/**
+ * Realiza una petición al API de Twitch para comprobar si el token proporcionado es válido. Cambia el estado de la página acorde con el resultado.
+ * @param {string} mensaje - Mensaje a ser enviado.
+ */
+function chatEnviar(mensaje) {
+    let pre = document.createElement("pre");
+    pre.className = "cliente";
+    pre.textContent = mensaje;
+    chat.append(pre);
+    twitterChat.send(mensaje);
+    chat.scrollTo({ top: chat.scrollHeight - chat.clientHeight, left: 0, behavior: 'smooth' });
+}
 
-    run() {
-        this.messageListener({raw: "Pruebas " + this.#token});
-        super.dispatchEvent(new CustomEvent("mio", {detail: { raw: "Pruebas :D " + this.#token}}));
-    }
-    static distancia ( a , b) {
-      const dx = a.x - b.x;
-      const dy = a.y - b.y;
-  
-      return Math.sqrt ( dx * dx + dy * dy );
+/**
+ * Gestionamos el evento del envío del formulario.
+ */
+function formularioEnvio(evento) {
+    /* Evitamos el envío del formulario */
+    evento.preventDefault();
+    /* Enviamos el mensaje */
+    chatEnviar("PRIVMSG #" + sessionStorage.login + " :" + texto.value);
+    /* Limpiamos el formulario */
+    texto.value = "";
+}
+
+function procesarInstruccion(instruccion, parametros, etiquetas = {}) {
+    /* Obtenemos las partes del mensaje */
+    [ , codigo, destino, mensaje ] = parametros.match(/^([\S]*) ([\S]*) ([\S]*) (.*)$/);
+    /* Índice de códigos: https://www.rfc-editor.org/rfc/rfc2812#section-5 */
+    switch (codigo) {
+        case "001": // RPL_WELCOME
+            /* Solicitamos que los mensajes del chat lleguen con las etiquetas de Twitch */
+            /* Ver https://dev.twitch.tv/docs/irc/tags para más información */
+            chatEnviar("CAP REQ :twitch.tv/tags");
+            /* Solicitamos el acceso a nuestro propio canal */
+            chatEnviar("JOIN #" + sessionStorage.login);
+            return;
+        case "CAP": // Extensión de Twitch
+            /* Nos han respondido aceptando una solicitud */
+            console.log("CAP aceptado:", mensaje);
+            tags = true;
+            break;
+        case "353 ": // RPL_NAMREPLY
+            /* Procesar listado de usuarios */
+            break;
     }
 }
 
-t = new Date("")
-
-p = new TwitterChatWs("4343");
-p.onMessage((evento) => {console.log(evento.raw);});
-p.addEventListener("mio", (e) => console.log("Evento: ", e));
-p.run();
-console.log(p);
-
+let twitterChat;
 /**
  * Configura la conexión mediante Websockets y gestiona los mensajes.
  */
@@ -82,82 +145,22 @@ function comenzarChat() {
     /* El uso de TAGs ha sido habilitado */
     let tags = false;
 
-    /* Creamos el websocket al servicio IRC de Twitch https://dev.twitch.tv/docs/irc/guide */
-    const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
-
-    /**
-     * Realiza una petición al API de Twitch para comprobar si el token proporcionado es válido. Cambia el estado de la página acorde con el resultado.
-     * @param {string} mensaje - Mensaje a ser enviado.
-     */
-    function chatEnviar(mensaje) {
-        let pre = document.createElement("pre");
-        pre.className = "cliente";
-        pre.textContent = mensaje;
-        chat.append(pre);
-        ws.send(mensaje);
-        chat.scrollTo({ top: chat.scrollHeight - chat.clientHeight, left: 0, behavior: 'smooth' });
-    }
-
-    /**
-     * Gestionamos el evento del envío del formulario.
-     */
-    function formularioEnvio(evento) {
-        /* Evitamos el envío del formulario */
-        evento.preventDefault();
-        /* Enviamos el mensaje */
-        chatEnviar("PRIVMSG #" + sessionStorage.login + " :" + texto.value);
-        /* Limpiamos el formulario */
-        texto.value = "";
-    }
-
-    /**
-     * Nos autenticamos en el servidor.
-     */
-    function chatAutenticacion() {
-        /* Enviamos las credenciales del usuario de manera silenciosa (sin usar chatEnviar) */
-        ws.send("PASS oauth:" + sessionStorage.token);
-        ws.send("NICK " + sessionStorage.login);
-    }
-
-    function procesarInstruccion(instruccion, parametros, etiquetas = {}) {
-        /* Obtenemos las partes del mensaje */
-        [ , codigo, destino, mensaje ] = parametros.match(/^([\S]*) ([\S]*) ([\S]*) (.*)$/);
-        /* Índice de códigos: https://www.rfc-editor.org/rfc/rfc2812#section-5 */
-        switch (codigo) {
-            case "001": // RPL_WELCOME
-                /* Solicitamos que los mensajes del chat lleguen con las etiquetas de Twitch */
-                /* Ver https://dev.twitch.tv/docs/irc/tags para más información */
-                chatEnviar("CAP REQ :twitch.tv/tags");
-                /* Solicitamos el acceso a nuestro propio canal */
-                chatEnviar("JOIN #" + sessionStorage.login);
-                return;
-            case "CAP": // Extensión de Twitch
-                /* Nos han respondido aceptando una solicitud */
-                console.log("CAP aceptado:", mensaje);
-                tags = true;
-                break;
-            case "353 ": // RPL_NAMREPLY
-                /* Procesar listado de usuarios */
-                break;
-        }
-    }
-
-    /* Activamos el envío de PINGs periódicos y lanzamos el primero */
-    ws.onopen = function(event) {
+    twitterChat = new TwitterChatWs(sessionStorage.token, sessionStorage.login);
+    twitterChat.addEventListener("open", function(event) {
         console.log("comenzarChat: conexión establecida");
         /* Restablecemos el retraso de los reintentos de conexión */
         retraso = 0;
-        /* Autenticamos la sesión del usuario */
-        chatAutenticacion();
         /* Agregamos el manipulador del evento del envío del formulario */
         formulario.addEventListener("submit", formularioEnvio, false);
-    };
+    });
 
-    ws.onerror = function(error) {
+    twitterChat.addEventListener("messageline", function(event) { console.log("messageline", event) });
+
+    twitterChat.addEventListener("error", function(event) {
         console.error("Websocket (error):", error);
-    };
+    });
 
-    ws.onmessage = function(evento) {
+    twitterChat.addEventListener("message", function(evento) {
         console.log("Websocket (onmessage):", evento);
         /* Agregamos el mensaje recibido a la ventana del chat */
         let pre = document.createElement("pre");
@@ -190,16 +193,18 @@ function comenzarChat() {
                     }
             }
         });
-    };
+    });
 
-    ws.onclose = function() {
+    twitterChat.addEventListener("close", function(event) {
         /* Volvemos a conectarnos pasado un tiempo de espera prudencial y exponencial */
         const tiempo = Math.pow(2, retraso++);
         console.log(`Reconectando en ${tiempo} segundos`);
         setTimeout(comenzarChat, tiempo * 1000);
         /* Eliminamos el manipulador anterior */
         formulario.removeEventListener("submit", formularioEnvio, false);
-    };
+    });
+
+    twitterChat.connect();
 }
 
 /**
@@ -240,7 +245,7 @@ function cambiarEstado(estado) {
         /* Ocultamos el enlace de inicio de sesión y mostramos el chat */
         iniciarSesion.style.display = "none";
         contenidoChat.style.display = "block";
-        comenzarChat(sessionStorage.token);
+        comenzarChat();
     } else {
         /* Calculamos el enlace de inicio de sesión */
         sessionStorage.estado = Math.random(0).toString(36).substring(2);
